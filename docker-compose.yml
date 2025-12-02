@@ -1,0 +1,177 @@
+services:
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka-exporter
+    command:
+      - "--kafka.server=kafka:9092"
+    ports:
+      - "9308:9308"
+    depends_on:
+      - kafka
+
+  spark-master:
+    image: bitnami/spark:latest
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_JAVA_OPT_1=-Dcom.sun.management.jmxremote=true
+      - SPARK_JAVA_OPT_2=-Dcom.sun.management.jmxremote.port=7078
+      - SPARK_JAVA_OPT_3=-Dcom.sun.management.jmxremote.rmi.port=7078
+      - SPARK_JAVA_OPT_4=-Dcom.sun.management.jmxremote.authenticate=false
+      - SPARK_JAVA_OPT_5=-Dcom.sun.management.jmxremote.ssl=false
+      - SPARK_JAVA_OPT_6=-Djava.rmi.server.hostname=spark-master
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+
+
+  spark-worker-1:
+    image: bitnami/spark:latest
+    container_name: spark-worker-1
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=512m
+      - SPARK_JAVA_OPT_1=-Dcom.sun.management.jmxremote=true
+      - SPARK_JAVA_OPT_2=-Dcom.sun.management.jmxremote.port=7079
+      - SPARK_JAVA_OPT_3=-Dcom.sun.management.jmxremote.rmi.port=7079
+      - SPARK_JAVA_OPT_4=-Dcom.sun.management.jmxremote.authenticate=false
+      - SPARK_JAVA_OPT_5=-Dcom.sun.management.jmxremote.ssl=false
+      - SPARK_JAVA_OPT_6=-Djava.rmi.server.hostname=spark-worker-1
+    depends_on:
+      - spark-master
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 600M
+
+
+  spark-worker-2:
+    image: bitnami/spark:latest
+    container_name: spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=512m
+      - SPARK_JAVA_OPT_1=-Dcom.sun.management.jmxremote=true
+      - SPARK_JAVA_OPT_2=-Dcom.sun.management.jmxremote.port=7080
+      - SPARK_JAVA_OPT_3=-Dcom.sun.management.jmxremote.rmi.port=7080
+      - SPARK_JAVA_OPT_4=-Dcom.sun.management.jmxremote.authenticate=false
+      - SPARK_JAVA_OPT_5=-Dcom.sun.management.jmxremote.ssl=false
+      - SPARK_JAVA_OPT_6=-Djava.rmi.server.hostname=spark-worker-2
+    depends_on:
+      - spark-master
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 600M
+
+  spark-streaming:
+    build:
+      context: ./processing
+    container_name: spark-streaming
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=input_events
+      - CHECKPOINT_LOCATION=/tmp/streaming_checkpoint
+      - OUTPUT_PATH=/tmp/streaming_output
+    depends_on:
+      - spark-master
+      - kafka
+    command: >
+      spark-submit
+      --master spark://spark-master:7077
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
+      --conf spark.sql.adaptive.enabled=true
+      --conf spark.sql.streaming.checkpointLocation=/tmp/streaming_checkpoint
+      /opt/spark_streaming_job.py
+
+
+  spark-master-exporter:
+    image: bitnami/jmx-exporter:latest
+    container_name: spark-master-exporter
+    environment:
+      - JMX_HOST=spark-master
+      - JMX_PORT=7078
+    ports:
+      - "9101:9100"
+    volumes:
+      - ./monitoring/jmx/spark-master.yml:/config/config.yml
+    depends_on:
+      - spark-master
+
+  spark-worker-1-exporter:
+    image: bitnami/jmx-exporter:latest
+    container_name: spark-worker-1-exporter
+    environment:
+      - JMX_HOST=spark-worker-1
+      - JMX_PORT=7079
+    ports:
+      - "9102:9100"
+    volumes:
+      - ./monitoring/jmx/spark-worker.yml:/config/config.yml
+    depends_on:
+      - spark-worker-1
+
+  spark-worker-2-exporter:
+    image: bitnami/jmx-exporter:latest
+    container_name: spark-worker-2-exporter
+    environment:
+      - JMX_HOST=spark-worker-2
+      - JMX_PORT=7080
+    ports:
+      - "9103:9100"
+    volumes:
+      - ./monitoring/jmx/spark-worker.yml:/config/config.yml
+    depends_on:
+      - spark-worker-2
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - kafka-exporter
+      - spark-master-exporter
+
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
