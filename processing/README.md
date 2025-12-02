@@ -81,18 +81,24 @@ All configuration is done via environment variables. The job does not use config
 - `WINDOW_DURATION`: Window duration for aggregations (default: `1 minute`)
 - `WATERMARK_DELAY`: Watermark delay for late data (default: `10 minutes`)
 
-#### S3 Configuration
-- `S3_BUCKET`: S3 bucket name for output (optional, if not set writes to console)
-- `S3_PREFIX`: S3 prefix for output files (default: `streaming-output`)
+#### Storage Configuration
+- `S3_BUCKET`: S3/MinIO bucket name for output (optional, if not set writes to console)
+- `S3_PREFIX`: S3/MinIO prefix for output files (default: `streaming-output`)
+- `S3_ENDPOINT`: Storage endpoint (required for MinIO, e.g., `http://minio:9000`)
 
-#### AWS Credentials
-AWS credentials are obtained in the following order:
+#### AWS/MinIO Credentials
+Credentials are obtained in the following order:
 1. Environment variables: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (or `S3_ACCESS_KEY` and `S3_SECRET_KEY`)
-2. boto3 credential chain (if boto3 is available):
+2. boto3 credential chain (if boto3 is available and not using MinIO):
    - `~/.aws/credentials` file
    - IAM roles (when running on EC2/ECS)
    - Environment variables
    - Other boto3 credential providers
+
+**For MinIO:**
+- Default credentials: `minioadmin` / `minioadmin`
+- Set via environment variables: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- Endpoint must be set: `S3_ENDPOINT=http://minio:9000`
 
 #### Spark Configuration
 - `SPARK_SQL_ADAPTIVE_ENABLED`: Enable adaptive execution (default: `true`)
