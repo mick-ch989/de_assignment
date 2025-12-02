@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'streaming-pipeline'
+
+scrape_configs:
+  - job_name: 'kafka-exporter'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+        labels:
+          service: 'kafka'
+
+  - job_name: 'spark-master'
+    static_configs:
+      - targets: ['spark-master-exporter:9100']
+        labels:
+          service: 'spark-master'
+          instance: 'spark-master'
+
+  - job_name: 'spark-worker-1'
+    static_configs:
+      - targets: ['spark-worker-1-exporter:9100']
+        labels:
+          service: 'spark-worker'
+          instance: 'spark-worker-1'
+
+  - job_name: 'spark-worker-2'
+    static_configs:
+      - targets: ['spark-worker-2-exporter:9100']
+        labels:
+          service: 'spark-worker'
+          instance: 'spark-worker-2'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
