@@ -1,15 +1,21 @@
+"""
+Spark Structured Streaming Job for ETL Processing
+Consumes from Kafka, performs transformations, aggregations, and writes results
+"""
+
 import os
 import json
 import logging
 from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 
+# Try to import boto3 for AWS credentials
 try:
     import boto3
+
     BOTO3_AVAILABLE = True
 except ImportError:
     BOTO3_AVAILABLE = False
-
 from pyspark.sql.functions import (
     col,
     from_json,
@@ -31,6 +37,7 @@ from pyspark.sql.types import (
 from pyspark.sql.utils import AnalysisException
 from pyspark.errors import StreamingQueryException
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -43,9 +50,11 @@ def get_aws_credentials():
     access_key = None
     secret_key = None
 
+    # First try environment variables (explicit)
     access_key = os.getenv("AWS_ACCESS_KEY_ID") or os.getenv("S3_ACCESS_KEY")
     secret_key = os.getenv("AWS_SECRET_ACCESS_KEY") or os.getenv("S3_SECRET_KEY")
 
+    # If not in env vars, try boto3 (uses ~/.aws/credentials, IAM roles, etc.)
     if not access_key or not secret_key:
         if BOTO3_AVAILABLE:
             try:
@@ -76,6 +85,7 @@ WATERMARK_DELAY = os.getenv("WATERMARK_DELAY", "10 minutes")
 
 S3_BUCKET = os.getenv("S3_BUCKET", "")
 S3_PREFIX = os.getenv("S3_PREFIX", "streaming-output")
+S3_ENDPOINT = os.getenv("S3_ENDPOINT", "")  # For MinIO or S3-compatible services
 
 AWS_ACCESS_KEY, AWS_SECRET_KEY = get_aws_credentials()
 
@@ -119,17 +129,33 @@ def create_spark_session():
         builder = builder.config("spark.sql.streaming.stopGracefullyOnShutdown", str(SPARK_GRACEFUL_SHUTDOWN).lower())
         builder = builder.config("spark.sql.streaming.minBatchesToRetain", str(SPARK_MIN_BATCHES_TO_RETAIN))
 
+        # Configure S3/MinIO if credentials are available
         if AWS_ACCESS_KEY and AWS_SECRET_KEY:
             builder = builder.config("spark.hadoop.fs.s3a.access.key", AWS_ACCESS_KEY)
             builder = builder.config("spark.hadoop.fs.s3a.secret.key", AWS_SECRET_KEY)
             builder = builder.config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
             builder = builder.config("spark.hadoop.fs.s3a.aws.credentials.provider",
-                                   "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
-            logger.info("S3 credentials configured")
+                                     "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
+
+            # Configure endpoint for MinIO or S3-compatible services
+            if S3_ENDPOINT:
+                builder = builder.config("spark.hadoop.fs.s3a.endpoint", S3_ENDPOINT)
+                builder = builder.config("spark.hadoop.fs.s3a.path.style.access", "true")
+                builder = builder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+                logger.info(f"S3/MinIO configured with endpoint: {S3_ENDPOINT}")
+            else:
+                # AWS S3 default configuration
+                builder = builder.config("spark.hadoop.fs.s3a.path.style.access", "false")
+                builder = builder.config("spark.hadoop.fs.s3a.connection.ssl.enabled", "true")
+                logger.info("S3 configured for AWS S3")
         elif S3_BUCKET:
+            # If S3 bucket is set but no explicit credentials, try default AWS credential chain
             builder = builder.config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
             builder = builder.config("spark.hadoop.fs.s3a.aws.credentials.provider",
-                                   "org.apache.hadoop.fs.s3a.DefaultAWSCredentialsProviderChain")
+                                     "org.apache.hadoop.fs.s3a.DefaultAWSCredentialsProviderChain")
+            if S3_ENDPOINT:
+                builder = builder.config("spark.hadoop.fs.s3a.endpoint", S3_ENDPOINT)
+                builder = builder.config("spark.hadoop.fs.s3a.path.style.access", "true")
             logger.info("S3 configured to use default AWS credential chain")
 
         spark = builder.getOrCreate()
@@ -156,7 +182,8 @@ def read_from_kafka(spark, kafka_servers, topic):
             .load()
 
         logger.info(f"Successfully connected to Kafka topic: {topic}")
-        logger.info(f"Kafka configuration: startingOffsets={KAFKA_STARTING_OFFSETS}, maxOffsetsPerTrigger={KAFKA_MAX_OFFSETS_PER_TRIGGER}")
+        logger.info(
+            f"Kafka configuration: startingOffsets={KAFKA_STARTING_OFFSETS}, maxOffsetsPerTrigger={KAFKA_MAX_OFFSETS_PER_TRIGGER}")
         return df
     except Exception as e:
         logger.error(f"Failed to read from Kafka: {str(e)}")
@@ -264,42 +291,42 @@ def perform_aggregations(df):
         windowed_df = df \
             .withWatermark("event_timestamp", WATERMARK_DELAY) \
             .groupBy(
-                window(col("event_timestamp"), WINDOW_DURATION),
-                col("device_id"),
-                col("device_type")
-            ) \
+            window(col("event_timestamp"), WINDOW_DURATION),
+            col("device_id"),
+            col("device_type")
+        ) \
             .agg(
-                count("*").alias("event_count"),
-                avg("event_duration").alias("avg_duration"),
-                max_spark("event_duration").alias("max_duration"),
-                min_spark("event_duration").alias("min_duration"),
-                avg("battery_level").alias("avg_battery_level"),
-                min_spark("battery_level").alias("min_battery_level"),
-                avg("signal_strength").alias("avg_signal_strength"),
-                min_spark("signal_strength").alias("min_signal_strength"),
-                first("city").alias("city"),
-                first("country").alias("country"),
-                first("firmware_version").alias("firmware_version"),
-                max_spark("event_timestamp").alias("last_event_time")
-            ) \
+            count("*").alias("event_count"),
+            avg("event_duration").alias("avg_duration"),
+            max_spark("event_duration").alias("max_duration"),
+            min_spark("event_duration").alias("min_duration"),
+            avg("battery_level").alias("avg_battery_level"),
+            min_spark("battery_level").alias("min_battery_level"),
+            avg("signal_strength").alias("avg_signal_strength"),
+            min_spark("signal_strength").alias("min_signal_strength"),
+            first("city").alias("city"),
+            first("country").alias("country"),
+            first("firmware_version").alias("firmware_version"),
+            max_spark("event_timestamp").alias("last_event_time")
+        ) \
             .select(
-                col("window.start").alias("window_start"),
-                col("window.end").alias("window_end"),
-                col("device_id"),
-                col("device_type"),
-                col("event_count"),
-                col("avg_duration"),
-                col("max_duration"),
-                col("min_duration"),
-                col("avg_battery_level"),
-                col("min_battery_level"),
-                col("avg_signal_strength"),
-                col("min_signal_strength"),
-                col("city"),
-                col("country"),
-                col("firmware_version"),
-                col("last_event_time")
-            )
+            col("window.start").alias("window_start"),
+            col("window.end").alias("window_end"),
+            col("device_id"),
+            col("device_type"),
+            col("event_count"),
+            col("avg_duration"),
+            col("max_duration"),
+            col("min_duration"),
+            col("avg_battery_level"),
+            col("min_battery_level"),
+            col("avg_signal_strength"),
+            col("min_signal_strength"),
+            col("city"),
+            col("country"),
+            col("firmware_version"),
+            col("last_event_time")
+        )
 
         logger.info("Aggregations completed")
         return windowed_df
@@ -352,6 +379,7 @@ def main():
         logger.info(f"Watermark delay: {WATERMARK_DELAY}")
         if S3_BUCKET:
             logger.info(f"S3 bucket: {S3_BUCKET}, prefix: {S3_PREFIX}")
+
 
         spark = create_spark_session()
         kafka_df = read_from_kafka(spark, KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC)

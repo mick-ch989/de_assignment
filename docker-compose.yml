@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
 
   zookeeper:
@@ -27,6 +29,38 @@ services:
       - "9308:9308"
     depends_on:
       - kafka
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # Console UI
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio-client:
+    image: minio/mc:latest
+    container_name: minio-client
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/streaming-pipeline-output || true;
+      /usr/bin/mc anonymous set download myminio/streaming-pipeline-output || true;
+      exit 0;
+      "
+    depends_on:
+      - minio
 
   spark-master:
     image: bitnami/spark:latest
@@ -98,9 +132,22 @@ services:
       - KAFKA_TOPIC=input_events
       - CHECKPOINT_LOCATION=/tmp/streaming_checkpoint
       - OUTPUT_PATH=/tmp/streaming_output
+      # Storage configuration - choose one:
+      # Option 1: MinIO (local S3-compatible storage)
+      - S3_BUCKET=streaming-pipeline-output
+      - S3_PREFIX=streaming-output
+      - S3_ENDPOINT=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      # Option 2: AWS S3 (uncomment and comment MinIO settings above)
+      # - S3_BUCKET=your-aws-bucket-name
+      # - S3_PREFIX=streaming-output
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     depends_on:
       - spark-master
       - kafka
+      - minio
     command: >
       spark-submit
       --master spark://spark-master:7077
@@ -175,3 +222,6 @@ services:
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
     depends_on:
       - prometheus
+
+volumes:
+  minio_data:

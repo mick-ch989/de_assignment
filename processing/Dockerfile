@@ -24,6 +24,7 @@ ENV WINDOW_DURATION=1 minute
 ENV WATERMARK_DELAY=10 minutes
 
 ENV S3_PREFIX=streaming-output
+ENV S3_ENDPOINT=
 
 # Spark configuration defaults
 ENV SPARK_SQL_ADAPTIVE_ENABLED=true
