@@ -1,0 +1,72 @@
+{
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "integer",
+      "description": "Unique event identifier"
+    },
+    "device_id": {
+      "type": "string",
+      "description": "Device identifier"
+    },
+    "device_type": {
+      "type": "string",
+      "enum": ["sensor_A", "sensor_B", "camera", "thermo"],
+      "description": "Type of device"
+    },
+    "event_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the event"
+    },
+    "event_duration": {
+      "type": "number",
+      "description": "Duration of the event in seconds"
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "description": "Latitude coordinate"
+        },
+        "longitude": {
+          "type": "number",
+          "description": "Longitude coordinate"
+        },
+        "city": {
+          "type": "string",
+          "description": "City name"
+        },
+        "country": {
+          "type": "string",
+          "description": "Country name"
+        }
+      },
+      "required": ["latitude", "longitude", "city", "country"]
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "firmware_version": {
+          "type": "string",
+          "description": "Device firmware version"
+        },
+        "battery_level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Battery level percentage"
+        },
+        "signal_strength": {
+          "type": "integer",
+          "minimum": -120,
+          "maximum": 0,
+          "description": "Signal strength in dBm"
+        }
+      },
+      "required": ["firmware_version", "battery_level", "signal_strength"]
+    }
+  },
+  "required": ["event_id", "device_id", "device_type", "event_time", "event_duration", "location", "metadata"]
+}
