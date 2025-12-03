@@ -28,7 +28,6 @@ setup: ## One-command setup: install dependencies and prepare environment
 	@echo "$(BLUE)========================================$(NC)"
 	@echo ""
 	@echo "$(GREEN)Step 1: Installing Python dependencies...$(NC)"
-	@if [ -f "requirements.txt" ]; then $(PIP) install -r requirements.txt; fi
 	@if [ -f "ingestion/producer/requirements.txt" ]; then $(PIP) install -r ingestion/producer/requirements.txt; fi
 	@if [ -f "processing/test_requirements.txt" ]; then $(PIP) install -r processing/test_requirements.txt; fi
 	@echo ""
@@ -52,7 +51,6 @@ setup: ## One-command setup: install dependencies and prepare environment
 
 install: ## Install Python dependencies
 	@echo "$(GREEN)Installing dependencies...$(NC)"
-	@if [ -f "requirements.txt" ]; then $(PIP) install -r requirements.txt; fi
 	@if [ -f "ingestion/producer/requirements.txt" ]; then $(PIP) install -r ingestion/producer/requirements.txt; fi
 	@if [ -f "processing/test_requirements.txt" ]; then $(PIP) install -r processing/test_requirements.txt; fi
 	@echo "$(GREEN)✓ Dependencies installed$(NC)"
