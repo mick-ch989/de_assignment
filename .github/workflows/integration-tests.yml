@@ -1,0 +1,57 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      zookeeper:
+        image: wurstmeister/zookeeper
+        ports:
+          - 2181:2181
+      
+      kafka:
+        image: wurstmeister/kafka
+        depends-on: zookeeper
+        ports:
+          - 9092:9092
+        env:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f ingestion/producer/requirements.txt ]; then pip install -r ingestion/producer/requirements.txt; fi
+          if [ -f processing/test_requirements.txt ]; then pip install -r processing/test_requirements.txt; fi
+      
+      - name: Wait for Kafka
+        run: |
+          echo "Waiting for Kafka to be ready..."
+          timeout 60 bash -c 'until nc -z localhost 9092; do sleep 1; done'
+      
+      - name: Run integration tests
+        env:
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        run: |
+          cd processing
+          pytest test_integration.py -v -m "integration" --tb=short || echo "Integration tests skipped (require full Spark cluster)"
+

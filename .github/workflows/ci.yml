@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint flake8 black
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f ingestion/producer/requirements.txt ]; then pip install -r ingestion/producer/requirements.txt; fi
+      
+      - name: Lint with flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      
+      - name: Check code formatting with black
+        run: |
+          black --check .
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f ingestion/producer/requirements.txt ]; then pip install -r ingestion/producer/requirements.txt; fi
+          if [ -f processing/test_requirements.txt ]; then pip install -r processing/test_requirements.txt; fi
+      
+      - name: Run unit tests
+        run: |
+          cd processing
+          pytest test_spark_streaming_job.py -v -m "not integration" --tb=short
+      
+      - name: Generate coverage report
+        run: |
+          cd processing
+          pytest --cov=spark_streaming_job --cov-report=xml --cov-report=html test_spark_streaming_job.py || true
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./processing/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  validate-scripts:
+    name: Validate Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check script syntax
+        run: |
+          find scripts -name "*.sh" -exec bash -n {} \;
+      
+      - name: Check Python syntax
+        run: |
+          find . -name "*.py" -not -path "./.venv/*" -not -path "./venv/*" -exec python3 -m py_compile {} \;
+
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build ingestion image
+        run: |
+          cd ingestion
+          docker build -t streaming-ingestion:test .
+      
+      - name: Build processing image
+        run: |
+          cd processing
+          docker build -t streaming-processing:test .
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
