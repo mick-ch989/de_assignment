@@ -104,34 +104,6 @@ The project includes a comprehensive Makefile for easy operations:
 make help
 ```
 
-## 🔄 Complete Workflow
-
-### Быстрый старт (см. `QUICK_START.md` для подробной инструкции)
-
-```bash
-# 1. Первоначальная настройка (один раз)
-make setup
-
-# 2. Запуск всех сервисов
-make start
-
-# 3. Настройка MinIO bucket (один раз)
-make setup-minio
-
-# 4. Генерация данных (в новом терминале)
-make producer
-
-# 5. Мониторинг
-make monitor
-
-# 6. Остановка
-make stop
-```
-
-### Подробная инструкция
-
-См. файл **[QUICK_START.md](QUICK_START.md)** для полной пошаговой инструкции с решением проблем.
-
 ## 📊 Monitoring
 
 Access monitoring dashboards:
@@ -325,10 +297,6 @@ sudo systemctl start docker  # Linux
 4. Run tests: `make test`
 5. Check code quality: `make lint`
 6. Submit a pull request
-
-## 📄 License
-
-[Add your license here]
 
 ## 🙏 Acknowledgments
 
