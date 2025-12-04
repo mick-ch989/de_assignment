@@ -1,7 +1,6 @@
 """
 Integration tests for Spark Streaming Job
 These tests require a running Spark cluster and may take longer to execute
-AI Generated
 """
 
 import pytest
@@ -28,7 +27,7 @@ def integration_spark():
 
 class TestEndToEndProcessing:
     """End-to-end integration tests"""
-
+    
     @pytest.mark.skip(reason="Requires Kafka and Spark cluster")
     def test_full_pipeline(self, integration_spark):
         """Test the complete ETL pipeline with real data"""
@@ -38,11 +37,11 @@ class TestEndToEndProcessing:
         # 3. Executing the full pipeline
         # 4. Verifying output
         pass
-
+    
     def test_schema_validation(self, integration_spark):
         """Test that schema correctly validates data"""
         import spark_streaming_job as stream_job
-
+        
         # Valid data
         valid_data = {
             "event_id": 123456,
@@ -62,37 +61,37 @@ class TestEndToEndProcessing:
                 "signal_strength": -75
             }
         }
-
+        
         # Create DataFrame with JSON string
         data = [(json.dumps(valid_data),)]
         schema = StructType([StructField("value", StringType(), True)])
         df = integration_spark.createDataFrame(data, schema)
-
+        
         # Parse JSON
         from pyspark.sql.functions import from_json, col
         parsed = df.select(from_json(col("value"), stream_job.EVENT_SCHEMA).alias("data"))
-
+        
         # Verify parsing succeeded
         result = parsed.select("data.*").first()
         assert result is not None
         assert result.event_id == 123456
         assert result.device_id == "dev_42"
-
+    
     def test_filtering_logic(self, integration_spark):
         """Test filtering logic with various data scenarios"""
         import spark_streaming_job as stream_job
         from pyspark.sql.functions import col, to_timestamp
-
+        
         # Create test data with mix of valid and invalid records
         test_cases = [
             # (event_id, duration, battery, latitude, should_pass)
-            (1, 2.5, 85, 40.0, True),  # Valid
+            (1, 2.5, 85, 40.0, True),   # Valid
             (2, -1.0, 85, 40.0, False),  # Invalid: negative duration
-            (3, 2.5, 150, 40.0, False),  # Invalid: battery > 100
-            (4, 2.5, 85, 200.0, False),  # Invalid: latitude out of range
-            (5, 2.5, 85, 40.0, True),  # Valid
+            (3, 2.5, 150, 40.0, False), # Invalid: battery > 100
+            (4, 2.5, 85, 200.0, False), # Invalid: latitude out of range
+            (5, 2.5, 85, 40.0, True),   # Valid
         ]
-
+        
         data = []
         for event_id, duration, battery, lat, _ in test_cases:
             data.append((
@@ -110,7 +109,7 @@ class TestEndToEndProcessing:
                 -75,
                 datetime.now()
             ))
-
+        
         schema = StructType([
             StructField("event_id", IntegerType(), False),
             StructField("device_id", StringType(), False),
@@ -126,12 +125,12 @@ class TestEndToEndProcessing:
             StructField("signal_strength", IntegerType(), False),
             StructField("event_timestamp", StringType(), True)
         ])
-
+        
         df = integration_spark.createDataFrame(data, schema)
         df = df.withColumn("event_timestamp", to_timestamp(col("event_timestamp"), "yyyy-MM-dd HH:mm:ss"))
-
+        
         filtered_df = stream_job.filter_valid_records(df)
-
+        
         # Should have 2 valid records
         assert filtered_df.count() == 2
         valid_ids = [row.event_id for row in filtered_df.select("event_id").collect()]
@@ -141,7 +140,7 @@ class TestEndToEndProcessing:
 
 class TestPerformance:
     """Performance and load tests"""
-
+    
     @pytest.mark.skip(reason="Performance test - run manually")
     def test_large_batch_processing(self, integration_spark):
         """Test processing of large batches"""
@@ -149,7 +148,7 @@ class TestPerformance:
         # Measure processing time
         # Verify no memory issues
         pass
-
+    
     @pytest.mark.skip(reason="Performance test - run manually")
     def test_window_aggregation_performance(self, integration_spark):
         """Test window aggregation performance"""

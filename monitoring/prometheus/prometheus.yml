@@ -5,33 +5,49 @@ global:
     monitor: 'streaming-pipeline'
 
 scrape_configs:
+  # Kafka Exporter
   - job_name: 'kafka-exporter'
     static_configs:
       - targets: ['kafka-exporter:9308']
         labels:
           service: 'kafka'
 
+  # Spark Master JMX Exporter
   - job_name: 'spark-master'
     static_configs:
-      - targets: ['spark-master-exporter:9100']
+      - targets: ['spark-master-exporter:5556']
         labels:
           service: 'spark-master'
           instance: 'spark-master'
+    # Fallback: Try Spark UI metrics endpoint if JMX fails
+    metrics_path: '/metrics/json'
+    scrape_interval: 30s
 
+  # Spark Worker 1 JMX Exporter
   - job_name: 'spark-worker-1'
     static_configs:
-      - targets: ['spark-worker-1-exporter:9100']
+      - targets: ['spark-worker-1-exporter:5556']
         labels:
           service: 'spark-worker'
           instance: 'spark-worker-1'
 
+  # Spark Worker 2 JMX Exporter
   - job_name: 'spark-worker-2'
     static_configs:
-      - targets: ['spark-worker-2-exporter:9100']
+      - targets: ['spark-worker-2-exporter:5556']
         labels:
           service: 'spark-worker'
           instance: 'spark-worker-2'
 
+  # Spark Streaming Application JMX Exporter
+  - job_name: 'spark-streaming'
+    static_configs:
+      - targets: ['spark-streaming-exporter:5556']
+        labels:
+          service: 'spark-streaming'
+          instance: 'spark-streaming'
+
+  # Prometheus self-monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']

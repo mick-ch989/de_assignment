@@ -1,64 +1,108 @@
 {
-  "dashboard": {
-    "title": "Streaming Pipeline Dashboard",
-    "tags": ["streaming", "kafka", "spark"],
-    "timezone": "browser",
-    "schemaVersion": 16,
-    "version": 1,
-    "refresh": "10s",
-    "panels": [
-      {
-        "id": 1,
-        "title": "Kafka Messages In",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
-        "targets": [
-          {
-            "expr": "kafka_topic_partition_current_offset{topic=\"input_events\"}",
-            "legendFormat": "{{partition}}"
-          }
-        ]
+  "uid": "streaming-pipeline",
+  "title": "Streaming Pipeline Dashboard",
+  "tags": ["streaming", "kafka", "spark"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 0,
+  "refresh": "10s",
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Kafka Topics Partitions",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
-      {
-        "id": 2,
-        "title": "Spark Master - Active Applications",
-        "type": "stat",
-        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
-        "targets": [
-          {
-            "expr": "spark_master_apps_active",
-            "legendFormat": "Active Apps"
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "kafka_topic_partitions{topic=\"input_events\"}",
+          "legendFormat": "Partitions",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           }
-        ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Kafka Topic Leaders",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
-      {
-        "id": 3,
-        "title": "Spark Workers - Cores Used",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
-        "targets": [
-          {
-            "expr": "spark_worker_cores_used",
-            "legendFormat": "{{instance}}"
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "kafka_topic_partition_leader{topic=\"input_events\"}",
+          "legendFormat": "Leader {{partition}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           }
-        ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Kafka In-Sync Replicas",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       },
-      {
-        "id": 4,
-        "title": "Kafka Consumer Lag",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
-        "targets": [
-          {
-            "expr": "kafka_consumer_lag_sum{topic=\"input_events\"}",
-            "legendFormat": "Lag"
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "kafka_topic_partition_in_sync_replica{topic=\"input_events\"}",
+          "legendFormat": "Partition {{partition}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           }
-        ]
-      }
-    ],
-    "time": {
-      "from": "now-15m",
-      "to": "now"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Kafka Topic Replicas",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "kafka_topic_partition_replicas{topic=\"input_events\"}",
+          "legendFormat": "Partition {{partition}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
     }
-  }
+  ],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": []
 }

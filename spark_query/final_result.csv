@@ -1,0 +1,7 @@
+device_type,event_date,percentile_95,mean_duration,stddev_duration,total_events,distinct_devices
+sensor_A,2024-01-15,4.523,2.345,1.234,1250,45
+sensor_A,2024-01-16,4.678,2.412,1.267,1320,48
+sensor_B,2024-01-15,3.891,2.123,1.089,890,32
+camera,2024-01-15,5.234,2.789,1.456,2100,15
+thermo,2024-01-15,3.456,2.012,0.987,1560,28
+

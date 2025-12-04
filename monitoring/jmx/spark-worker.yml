@@ -1,3 +1,30 @@
 ---
+startDelaySeconds: 0
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
 rules:
-  - pattern: ".*"
+  # Spark Worker metrics
+  - pattern: 'org.apache.spark<type=worker, name=(\w+)><>Value'
+    name: spark_worker_$1
+    type: GAUGE
+  - pattern: 'org.apache.spark<type=worker, name=(\w+)><>Count'
+    name: spark_worker_$1_count
+    type: COUNTER
+  # JVM metrics
+  - pattern: 'java.lang<type=Memory><HeapMemoryUsage><used>'
+    name: jvm_memory_heap_used_bytes
+    type: GAUGE
+  - pattern: 'java.lang<type=Memory><HeapMemoryUsage><max>'
+    name: jvm_memory_heap_max_bytes
+    type: GAUGE
+  - pattern: 'java.lang<type=GarbageCollector, name=(\w+)><>CollectionCount'
+    name: jvm_gc_collections_total
+    type: COUNTER
+    labels:
+      gc: $1
+  - pattern: 'java.lang<type=GarbageCollector, name=(\w+)><>CollectionTime'
+    name: jvm_gc_collection_seconds_total
+    type: COUNTER
+    labels:
+      gc: $1

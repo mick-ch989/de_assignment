@@ -1,37 +1,34 @@
 ---
 startDelaySeconds: 0
-hostPort: spark-master:7078
+hostPort: spark-worker-1:7079
 ssl: false
 lowercaseOutputName: false
 lowercaseOutputLabelNames: false
 rules:
-  # Spark Master metrics - Applications
-  - pattern: 'org.apache.spark<type=master, name=(\w+)><>Value'
-    name: spark_master_$1
+  # Spark Worker metrics
+  - pattern: 'org.apache.spark<type=worker, name=(\w+)><>Value'
+    name: spark_worker_$1
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master, name=(\w+)><>Count'
-    name: spark_master_$1_count
+  - pattern: 'org.apache.spark<type=worker, name=(\w+)><>Count'
+    name: spark_worker_$1_count
     type: COUNTER
-  - pattern: 'org.apache.spark<type=master><>AliveWorkers'
-    name: spark_master_alive_workers
+  - pattern: 'org.apache.spark<type=worker><>CoresFree'
+    name: spark_worker_cores_free
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>AliveApplications'
-    name: spark_master_alive_applications
+  - pattern: 'org.apache.spark<type=worker><>CoresUsed'
+    name: spark_worker_cores_used
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>WaitingApplications'
-    name: spark_master_waiting_applications
+  - pattern: 'org.apache.spark<type=worker><>MemoryFree'
+    name: spark_worker_memory_free_bytes
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>CoresUsed'
-    name: spark_master_cores_used
+  - pattern: 'org.apache.spark<type=worker><>MemoryUsed'
+    name: spark_worker_memory_used_bytes
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>CoresMax'
-    name: spark_master_cores_max
+  - pattern: 'org.apache.spark<type=worker><>Executors'
+    name: spark_worker_executors
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>MemoryUsed'
-    name: spark_master_memory_used_bytes
-    type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>MemoryMax'
-    name: spark_master_memory_max_bytes
+  - pattern: 'org.apache.spark<type=worker><>Apps'
+    name: spark_worker_apps
     type: GAUGE
   # JVM metrics
   - pattern: 'java.lang<type=Memory><HeapMemoryUsage><used>'
@@ -68,3 +65,4 @@ rules:
   - pattern: 'java.lang<type=Runtime><>Uptime'
     name: jvm_uptime_seconds
     type: GAUGE
+

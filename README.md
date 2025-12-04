@@ -1,5 +1,5 @@
-# DE Assignment
-
+# Streaming Pipeline Project
+## Time spent: 12hrs
 A comprehensive real-time streaming data pipeline using Kafka, Spark Structured Streaming, and S3/MinIO storage.
 
 ## 🚀 Quick Start
@@ -106,50 +106,31 @@ make help
 
 ## 🔄 Complete Workflow
 
-### 1. Initial Setup
+### Быстрый старт (см. `QUICK_START.md` для подробной инструкции)
+
 ```bash
+# 1. Первоначальная настройка (один раз)
 make setup
-```
 
-### 2. Start Services
-```bash
+# 2. Запуск всех сервисов
 make start
-```
 
-### 3. Generate Data
-```bash
-# In a separate terminal
-make producer
-```
-
-### 4. Set Up Storage (MinIO is configured by default)
-```bash
-# MinIO is automatically set up in docker-compose.yml
-# Or manually:
+# 3. Настройка MinIO bucket (один раз)
 make setup-minio
 
-# For AWS S3 instead:
-make setup-s3
-```
+# 4. Генерация данных (в новом терминале)
+make producer
 
-### 5. Run Analytics Query
-```bash
-# With MinIO (default):
-make query S3_BUCKET=streaming-pipeline-output S3_ENDPOINT=http://localhost:9000
+# 5. Мониторинг
+make monitor
 
-# With AWS S3:
-make query S3_BUCKET=my-aws-bucket
-```
-
-### 6. Validate Results
-```bash
-make validate-output
-```
-
-### 7. Stop Services
-```bash
+# 6. Остановка
 make stop
 ```
+
+### Подробная инструкция
+
+См. файл **[QUICK_START.md](QUICK_START.md)** для полной пошаговой инструкции с решением проблем.
 
 ## 📊 Monitoring
 

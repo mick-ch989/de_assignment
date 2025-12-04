@@ -12,7 +12,20 @@ echo "=========================================="
 echo ""
 
 # Configuration
-KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
+# Try to detect if Kafka is in Docker and use appropriate address
+if docker ps --format '{{.Names}}' | grep -q "^kafka$"; then
+    # Check if port is accessible on localhost
+    if nc -z localhost 9092 2>/dev/null; then
+        KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
+    else
+        echo "Warning: Kafka is running in Docker but port 9092 is not accessible on localhost"
+        echo "Make sure Kafka port is exposed in docker-compose.yml"
+        KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
+    fi
+else
+    KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
+fi
+
 PRODUCER_DIR="$PROJECT_ROOT/ingestion/producer"
 
 # Check if Kafka is running
@@ -42,10 +55,26 @@ fi
 
 cd "$PRODUCER_DIR"
 
+# Check if root venv exists and use it, otherwise create local venv
+if [ -d "$PROJECT_ROOT/venv" ]; then
+    echo "Using project virtual environment..."
+    PYTHON_CMD="$PROJECT_ROOT/venv/bin/python"
+    PIP_CMD="$PROJECT_ROOT/venv/bin/pip"
+elif [ -d "venv" ]; then
+    echo "Using local virtual environment..."
+    PYTHON_CMD="./venv/bin/python"
+    PIP_CMD="./venv/bin/pip"
+else
+    echo "Creating local virtual environment..."
+    python3 -m venv venv
+    PYTHON_CMD="./venv/bin/python"
+    PIP_CMD="./venv/bin/pip"
+fi
+
 # Install dependencies if needed
-if [ ! -d "venv" ] && [ -f "requirements.txt" ]; then
+if [ -f "requirements.txt" ]; then
     echo "Installing dependencies..."
-    pip3 install -r requirements.txt
+    $PIP_CMD install --progress-bar on -r requirements.txt
 fi
 
 # Set environment variable
@@ -58,4 +87,4 @@ echo "Press Ctrl+C to stop"
 echo ""
 
 # Run producer
-python3 producer.py
+$PYTHON_CMD producer.py

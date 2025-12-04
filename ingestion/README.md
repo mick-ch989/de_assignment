@@ -9,8 +9,6 @@ The ingestion module consists of a Python-based Kafka producer that:
 - Sends events to the `input_events` Kafka topic
 - Produces messages at a configurable rate (default: every 0.5 seconds)
 - Supports Docker containerization for easy deployment
-<br>
-### **Schema is AI generated**
 
 ## Structure
 

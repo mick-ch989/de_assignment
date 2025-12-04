@@ -1,13 +1,20 @@
-FROM bitnami/spark:latest
+FROM apache/spark-py:latest
 
 USER root
 
+# Install Python dependencies if needed
+# The bitnami/spark image already includes Python and PySpark
+
+# Set working directory
 WORKDIR /opt
 
+# Copy streaming job
 COPY spark_streaming_job.py /opt/spark_streaming_job.py
 
+# Set permissions
 RUN chmod +x /opt/spark_streaming_job.py
 
+# Python environment
 ENV PYSPARK_PYTHON=python3
 ENV PYSPARK_DRIVER_PYTHON=python3
 
@@ -20,8 +27,8 @@ ENV KAFKA_FAIL_ON_DATA_LOSS=false
 
 ENV CHECKPOINT_LOCATION=/tmp/streaming_checkpoint
 ENV OUTPUT_PATH=/tmp/streaming_output
-ENV WINDOW_DURATION=1 minute
-ENV WATERMARK_DELAY=10 minutes
+ENV WINDOW_DURATION="1 minute"
+ENV WATERMARK_DELAY="10 minutes"
 
 ENV S3_PREFIX=streaming-output
 ENV S3_ENDPOINT=

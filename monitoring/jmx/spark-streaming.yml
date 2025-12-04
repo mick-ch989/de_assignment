@@ -1,38 +1,24 @@
 ---
 startDelaySeconds: 0
-hostPort: spark-master:7078
+hostPort: spark-streaming:9999
 ssl: false
 lowercaseOutputName: false
 lowercaseOutputLabelNames: false
 rules:
-  # Spark Master metrics - Applications
-  - pattern: 'org.apache.spark<type=master, name=(\w+)><>Value'
-    name: spark_master_$1
+  # Spark Application metrics
+  - pattern: 'org.apache.spark<type=(\w+), name=(\w+)><>Value'
+    name: spark_application_$1_$2
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master, name=(\w+)><>Count'
-    name: spark_master_$1_count
+  - pattern: 'org.apache.spark<type=(\w+), name=(\w+)><>Count'
+    name: spark_application_$1_$2_count
     type: COUNTER
-  - pattern: 'org.apache.spark<type=master><>AliveWorkers'
-    name: spark_master_alive_workers
+  # Spark Streaming metrics
+  - pattern: 'org.apache.spark<type=streaming, name=(\w+)><>Value'
+    name: spark_streaming_$1
     type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>AliveApplications'
-    name: spark_master_alive_applications
-    type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>WaitingApplications'
-    name: spark_master_waiting_applications
-    type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>CoresUsed'
-    name: spark_master_cores_used
-    type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>CoresMax'
-    name: spark_master_cores_max
-    type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>MemoryUsed'
-    name: spark_master_memory_used_bytes
-    type: GAUGE
-  - pattern: 'org.apache.spark<type=master><>MemoryMax'
-    name: spark_master_memory_max_bytes
-    type: GAUGE
+  - pattern: 'org.apache.spark<type=streaming, name=(\w+)><>Count'
+    name: spark_streaming_$1_count
+    type: COUNTER
   # JVM metrics
   - pattern: 'java.lang<type=Memory><HeapMemoryUsage><used>'
     name: jvm_memory_heap_used_bytes
@@ -68,3 +54,4 @@ rules:
   - pattern: 'java.lang<type=Runtime><>Uptime'
     name: jvm_uptime_seconds
     type: GAUGE
+

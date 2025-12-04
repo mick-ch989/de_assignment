@@ -27,19 +27,37 @@ setup: ## One-command setup: install dependencies and prepare environment
 	@echo "$(BLUE)Setting up Streaming Pipeline$(NC)"
 	@echo "$(BLUE)========================================$(NC)"
 	@echo ""
-	@echo "$(GREEN)Step 1: Installing Python dependencies...$(NC)"
-	@if [ -f "ingestion/producer/requirements.txt" ]; then $(PIP) install -r ingestion/producer/requirements.txt; fi
-	@if [ -f "processing/test_requirements.txt" ]; then $(PIP) install -r processing/test_requirements.txt; fi
+	@echo "$(GREEN)Step 1: Setting up Python virtual environment...$(NC)"
+	@if [ ! -d "venv" ]; then \
+		echo "Creating virtual environment..."; \
+		$(PYTHON) -m venv venv; \
+	fi
+	@echo "$(GREEN)✓ Virtual environment ready$(NC)"
 	@echo ""
-	@echo "$(GREEN)Step 2: Making scripts executable...$(NC)"
-	@chmod +x scripts/*.sh
+	@echo "$(GREEN)Step 2: Installing Python dependencies...$(NC)"
+	@if [ -f "ingestion/producer/requirements.txt" ]; then \
+		echo "$(YELLOW)Installing producer dependencies from ingestion/producer/requirements.txt...$(NC)"; \
+		./venv/bin/pip install --progress-bar on -r ingestion/producer/requirements.txt; \
+		echo "$(GREEN)✓ Producer dependencies installed$(NC)"; \
+	fi
+	@if [ -f "processing/test_requirements.txt" ]; then \
+		echo "$(YELLOW)Installing test dependencies from processing/test_requirements.txt...$(NC)"; \
+		./venv/bin/pip install --progress-bar on -r processing/test_requirements.txt; \
+		echo "$(GREEN)✓ Test dependencies installed$(NC)"; \
+	fi
+	@echo "$(GREEN)✓ All dependencies installed$(NC)"
 	@echo ""
-	@echo "$(GREEN)Step 3: Checking Docker...$(NC)"
+	@echo "$(GREEN)Step 3: Making scripts executable...$(NC)"
+	@chmod +x scripts/*.sh 2>/dev/null || true
+	@chmod +x storage/*.sh 2>/dev/null || true
+	@echo "$(GREEN)✓ Scripts are executable$(NC)"
+	@echo ""
+	@echo "$(GREEN)Step 4: Checking Docker...$(NC)"
 	@command -v docker >/dev/null 2>&1 || { echo "$(RED)Error: Docker is not installed$(NC)"; exit 1; }
 	@command -v docker-compose >/dev/null 2>&1 || { echo "$(RED)Error: docker-compose is not installed$(NC)"; exit 1; }
 	@echo "$(GREEN)✓ Docker is available$(NC)"
 	@echo ""
-	@echo "$(GREEN)Step 4: Building Docker images...$(NC)"
+	@echo "$(GREEN)Step 5: Building Docker images...$(NC)"
 	@$(DOCKER_COMPOSE) build
 	@echo ""
 	@echo "$(GREEN)✓ Setup completed!$(NC)"
@@ -48,12 +66,29 @@ setup: ## One-command setup: install dependencies and prepare environment
 	@echo "  make start    - Start all services"
 	@echo "  make test     - Run tests"
 	@echo "  make help     - Show all commands"
+	@echo ""
+	@echo "$(YELLOW)Note:$(NC) Python dependencies are installed in ./venv"
+	@echo "  Activate with: source venv/bin/activate"
 
-install: ## Install Python dependencies
+install: ## Install Python dependencies (creates venv if needed)
+	@echo "$(GREEN)Setting up virtual environment...$(NC)"
+	@if [ ! -d "venv" ]; then \
+		echo "Creating virtual environment..."; \
+		$(PYTHON) -m venv venv; \
+	fi
 	@echo "$(GREEN)Installing dependencies...$(NC)"
-	@if [ -f "ingestion/producer/requirements.txt" ]; then $(PIP) install -r ingestion/producer/requirements.txt; fi
-	@if [ -f "processing/test_requirements.txt" ]; then $(PIP) install -r processing/test_requirements.txt; fi
-	@echo "$(GREEN)✓ Dependencies installed$(NC)"
+	@if [ -f "ingestion/producer/requirements.txt" ]; then \
+		echo "$(YELLOW)Installing producer dependencies...$(NC)"; \
+		./venv/bin/pip install --progress-bar on -r ingestion/producer/requirements.txt; \
+		echo "$(GREEN)✓ Producer dependencies installed$(NC)"; \
+	fi
+	@if [ -f "processing/test_requirements.txt" ]; then \
+		echo "$(YELLOW)Installing test dependencies...$(NC)"; \
+		./venv/bin/pip install --progress-bar on -r processing/test_requirements.txt; \
+		echo "$(GREEN)✓ Test dependencies installed$(NC)"; \
+	fi
+	@echo "$(GREEN)✓ All dependencies installed in ./venv$(NC)"
+	@echo "$(YELLOW)Activate with: source venv/bin/activate$(NC)"
 
 build: ## Build Docker images
 	@echo "$(GREEN)Building Docker images...$(NC)"
@@ -101,26 +136,49 @@ validate-s3: ## Validate S3 data (requires S3_BUCKET)
 	fi
 	@./scripts/validate_s3_data.sh
 
+check-minio: ## Check if Spark is writing data to MinIO
+	@./scripts/check_minio_data.sh
+
+test-pipeline: ## Test complete pipeline (producer -> Kafka -> Spark -> MinIO)
+	@./scripts/test_pipeline.sh
+
 # Storage setup
 setup-s3: ## Set up AWS S3 bucket
 	@./scripts/setup_s3_bucket.sh
 
 setup-minio: ## Set up MinIO bucket (default, local S3-compatible storage)
+	@echo "$(YELLOW)Note: This will start MinIO if it's not running$(NC)"
 	@./storage/setup_minio_bucket.sh
 
 # Testing
-test: ## Run all tests
+test: ## Run all tests (uses venv if available)
 	@echo "$(GREEN)Running tests...$(NC)"
-	@cd processing && $(PYTHON) -m pytest test_spark_streaming_job.py -v -m "not integration"
+	@if [ -d "venv" ]; then \
+		cd processing && ../venv/bin/python -m pytest test_spark_streaming_job.py -v -m "not integration"; \
+	else \
+		cd processing && $(PYTHON) -m pytest test_spark_streaming_job.py -v -m "not integration"; \
+	fi
 
 test-unit: ## Run unit tests only
-	@cd processing && $(PYTHON) -m pytest test_spark_streaming_job.py -v -m "unit"
+	@if [ -d "venv" ]; then \
+		cd processing && ../venv/bin/python -m pytest test_spark_streaming_job.py -v -m "unit"; \
+	else \
+		cd processing && $(PYTHON) -m pytest test_spark_streaming_job.py -v -m "unit"; \
+	fi
 
 test-integration: ## Run integration tests
-	@cd processing && $(PYTHON) -m pytest test_integration.py -v -m "integration"
+	@if [ -d "venv" ]; then \
+		cd processing && ../venv/bin/python -m pytest test_integration.py -v -m "integration"; \
+	else \
+		cd processing && $(PYTHON) -m pytest test_integration.py -v -m "integration"; \
+	fi
 
 test-coverage: ## Run tests with coverage
-	@cd processing && $(PYTHON) -m pytest --cov=spark_streaming_job --cov-report=html test_spark_streaming_job.py
+	@if [ -d "venv" ]; then \
+		cd processing && ../venv/bin/python -m pytest --cov=spark_streaming_job --cov-report=html test_spark_streaming_job.py; \
+	else \
+		cd processing && $(PYTHON) -m pytest --cov=spark_streaming_job --cov-report=html test_spark_streaming_job.py; \
+	fi
 	@echo "$(GREEN)Coverage report generated in processing/htmlcov/$(NC)"
 
 # Linting and formatting
@@ -145,13 +203,18 @@ clean: ## Clean temporary files and caches
 	@rm -rf .coverage htmlcov/ .tox/ dist/ build/
 	@echo "$(GREEN)✓ Cleanup completed$(NC)"
 
+clean-venv: ## Remove virtual environment
+	@echo "$(YELLOW)Removing virtual environment...$(NC)"
+	@rm -rf venv
+	@echo "$(GREEN)✓ Virtual environment removed$(NC)"
+
 clean-docker: ## Clean Docker containers and volumes
 	@echo "$(YELLOW)Cleaning Docker resources...$(NC)"
 	@$(DOCKER_COMPOSE) down -v
 	@docker system prune -f
 	@echo "$(GREEN)✓ Docker cleanup completed$(NC)"
 
-clean-all: clean clean-docker ## Clean everything (files and Docker)
+clean-all: clean clean-docker clean-venv ## Clean everything (files, Docker, and venv)
 
 # Logs
 logs: ## Show logs from all services
@@ -173,9 +236,9 @@ monitor: ## Open monitoring dashboards
 	@echo "  Prometheus: http://localhost:9090"
 	@echo "  Grafana: http://localhost:3000 (admin/admin)"
 	@echo ""
-	@echo "$(YELLOW)Opening in browser...$(NC)"
-	@command -v open >/dev/null 2>&1 && open http://localhost:8080 || true
-	@command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:8080 || true
+	@echo "$(YELLOW)Opening Grafana in browser...$(NC)"
+	@command -v open >/dev/null 2>&1 && open http://localhost:3000 || true
+	@command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:3000 || true
 
 # Full pipeline
 pipeline: setup start producer ## Complete pipeline: setup, start services, and producer
@@ -183,7 +246,11 @@ pipeline: setup start producer ## Complete pipeline: setup, start services, and 
 # Development
 dev-setup: setup ## Development setup with all tools
 	@echo "$(GREEN)Installing development tools...$(NC)"
-	@$(PIP) install black pylint pytest pytest-cov mypy || true
+	@if [ -d "venv" ]; then \
+		./venv/bin/pip install --progress-bar on black pylint pytest pytest-cov mypy || true; \
+	else \
+		$(PIP) install --progress-bar on black pylint pytest pytest-cov mypy || true; \
+	fi
 	@echo "$(GREEN)✓ Development setup completed$(NC)"
 
 # Quick commands
